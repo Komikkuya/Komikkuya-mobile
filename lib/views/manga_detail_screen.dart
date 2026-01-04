@@ -6,6 +6,7 @@ import '../config/app_theme.dart';
 import '../controllers/manga_detail_controller.dart';
 import '../controllers/genres_controller.dart';
 import '../controllers/navigation_controller.dart';
+import '../controllers/favorites_controller.dart';
 import '../models/manga_detail_model.dart';
 import 'chapter_reader_screen.dart';
 
@@ -68,6 +69,31 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
     if (firstChapter != null) {
       _navigateToChapter(firstChapter);
     }
+  }
+
+  /// Toggle favorite status
+  Future<void> _toggleFavorite(MangaDetail manga) async {
+    final favController = context.read<FavoritesController>();
+
+    // Detect source from URL
+    String source = 'westmanga';
+    if (widget.mangaUrl.contains('komiku.org')) {
+      source = 'komiku';
+    } else if (widget.mangaUrl.contains('weebcentral.com')) {
+      source = 'international';
+    } else if (widget.mangaUrl.contains('westmanga')) {
+      source = 'westmanga';
+    }
+
+    await favController.toggleFavorite(
+      id: widget.mangaUrl,
+      slug: widget.mangaUrl,
+      title: manga.title,
+      url: widget.mangaUrl,
+      cover: manga.coverImage,
+      type: manga.type,
+      source: source,
+    );
   }
 
   @override
@@ -488,24 +514,36 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),
-          // Continue button (if has history)
-          Expanded(
-            flex: 1,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Continue reading
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.accentPurple,
-                side: const BorderSide(color: AppTheme.accentPurple),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          // Favorite button
+          Consumer<FavoritesController>(
+            builder: (context, favController, child) {
+              final isFav = favController.isFavorited(widget.mangaUrl);
+              return Expanded(
+                flex: 1,
+                child: OutlinedButton.icon(
+                  onPressed: () => _toggleFavorite(manga),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isFav ? Colors.red : AppTheme.accentPurple,
+                    side: BorderSide(
+                      color: isFav ? Colors.red : AppTheme.accentPurple,
+                    ),
+                    backgroundColor: isFav ? Colors.red.withAlpha(20) : null,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                    ),
+                  ),
+                  icon: Icon(
+                    isFav ? Icons.favorite : Icons.favorite_border,
+                    size: 20,
+                    color: isFav ? Colors.red : AppTheme.accentPurple,
+                  ),
+                  label: Text(isFav ? 'Saved' : 'Save'),
                 ),
-              ),
-              icon: const Icon(Icons.bookmark_outline, size: 20),
-              label: const Text('Save'),
-            ),
+              );
+            },
           ),
         ],
       ),

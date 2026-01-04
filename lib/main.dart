@@ -9,11 +9,19 @@ import 'controllers/navigation_controller.dart';
 import 'controllers/popular_controller.dart';
 import 'controllers/latest_controller.dart';
 import 'controllers/genres_controller.dart';
+import 'controllers/auth_controller.dart';
+import 'controllers/favorites_controller.dart';
+import 'services/storage_service.dart';
 import 'views/main_layout.dart';
 import 'views/splash_screen.dart';
+import 'views/login_screen.dart';
+import 'views/register_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize storage for JWT tokens
+  await StorageService.init();
 
   // Set system UI overlay style for immersive dark theme
   SystemChrome.setSystemUIOverlayStyle(
@@ -40,6 +48,8 @@ class KomikkuyaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PopularController()),
         ChangeNotifierProvider(create: (_) => LatestController()),
         ChangeNotifierProvider(create: (_) => GenresController()),
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => FavoritesController()),
       ],
       child: MaterialApp(
         title: 'Komikkuya',
@@ -61,7 +71,7 @@ class KomikkuyaApp extends StatelessWidget {
   }
 }
 
-/// App wrapper that shows splash screen first, then main layout
+/// App wrapper that shows splash screen first, then routes based on auth
 class AppWrapper extends StatefulWidget {
   const AppWrapper({super.key});
 
@@ -72,6 +82,7 @@ class AppWrapper extends StatefulWidget {
 class _AppWrapperState extends State<AppWrapper>
     with SingleTickerProviderStateMixin {
   bool _showSplash = true;
+  bool _isLoggedIn = false;
   late AnimationController _transitionController;
   late Animation<double> _fadeOut;
   late Animation<double> _scaleOut;
@@ -136,6 +147,10 @@ class _AppWrapperState extends State<AppWrapper>
   }
 
   void _onSplashComplete() {
+    // Check if user is logged in after splash
+    final authController = context.read<AuthController>();
+    _isLoggedIn = authController.isLoggedIn;
+
     _transitionController.forward().then((_) {
       setState(() {
         _showSplash = false;
@@ -143,40 +158,222 @@ class _AppWrapperState extends State<AppWrapper>
     });
   }
 
+  /// Called when user logs in from login screen
+  void _onLoginSuccess() {
+    setState(() {
+      _isLoggedIn = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _transitionController,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            // Main Layout (behind, fades/scales in)
-            if (_transitionController.value > 0.3 || !_showSplash)
-              Opacity(
-                opacity: _showSplash ? _fadeIn.value : 1.0,
-                child: Transform.scale(
-                  scale: _showSplash ? _scaleIn.value : 1.0,
-                  child: SlideTransition(
-                    position: _showSplash
-                        ? _slideIn
-                        : AlwaysStoppedAnimation(Offset.zero),
-                    child: const MainLayout(),
-                  ),
-                ),
-              ),
+    return Consumer<AuthController>(
+      builder: (context, authController, child) {
+        // Use AuthController's isLoggedIn for reactive updates (e.g., after logout)
+        final isAuthenticated = !_showSplash && authController.isLoggedIn;
 
-            // Splash Screen (in front, fades/scales out)
-            if (_showSplash && _transitionController.value < 1.0)
-              Opacity(
-                opacity: _fadeOut.value,
-                child: Transform.scale(
-                  scale: _scaleOut.value,
-                  child: SplashScreen(onComplete: _onSplashComplete),
-                ),
-              ),
-          ],
+        return AnimatedBuilder(
+          animation: _transitionController,
+          builder: (context, child) {
+            return Stack(
+              children: [
+                // Target screen (behind, fades/scales in)
+                if (_transitionController.value > 0.3 || !_showSplash)
+                  Opacity(
+                    opacity: _showSplash ? _fadeIn.value : 1.0,
+                    child: Transform.scale(
+                      scale: _showSplash ? _scaleIn.value : 1.0,
+                      child: SlideTransition(
+                        position: _showSplash
+                            ? _slideIn
+                            : AlwaysStoppedAnimation(Offset.zero),
+                        // Route based on auth status (reactive)
+                        child: isAuthenticated
+                            ? const MainLayout()
+                            : _AuthRequiredScreen(
+                                onLoginSuccess: _onLoginSuccess,
+                              ),
+                      ),
+                    ),
+                  ),
+
+                // Splash Screen (in front, fades/scales out)
+                if (_showSplash && _transitionController.value < 1.0)
+                  Opacity(
+                    opacity: _fadeOut.value,
+                    child: Transform.scale(
+                      scale: _scaleOut.value,
+                      child: SplashScreen(onComplete: _onSplashComplete),
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
+  }
+}
+
+/// Screen shown when auth is required
+class _AuthRequiredScreen extends StatelessWidget {
+  final VoidCallback onLoginSuccess;
+
+  const _AuthRequiredScreen({required this.onLoginSuccess});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.primaryBlack,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              const Spacer(),
+              // Logo
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.accentPurple,
+                      AppTheme.accentPurple.withAlpha(150),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.accentPurple.withAlpha(100),
+                      blurRadius: 30,
+                      spreadRadius: 10,
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'lib/assets/icon_nobg.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.menu_book_rounded,
+                      color: Colors.white,
+                      size: 60,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Welcome to Komikkuya',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your manga universe awaits.\nLogin or create an account to continue.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textGrey.withAlpha(180),
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Spacer(),
+              // Login button
+              _buildButton(
+                context: context,
+                label: 'Login',
+                isPrimary: true,
+                onTap: () => _navigateToLogin(context),
+              ),
+              const SizedBox(height: 16),
+              // Register button
+              _buildButton(
+                context: context,
+                label: 'Create Account',
+                isPrimary: false,
+                onTap: () => _navigateToRegister(context),
+              ),
+              const SizedBox(height: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton({
+    required BuildContext context,
+    required String label,
+    required bool isPrimary,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: isPrimary
+              ? LinearGradient(
+                  colors: [
+                    AppTheme.accentPurple,
+                    AppTheme.accentPurple.withAlpha(180),
+                  ],
+                )
+              : null,
+          color: isPrimary ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: isPrimary
+              ? null
+              : Border.all(color: AppTheme.accentPurple, width: 2),
+          boxShadow: isPrimary
+              ? [
+                  BoxShadow(
+                    color: AppTheme.accentPurple.withAlpha(80),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isPrimary ? Colors.white : AppTheme.accentPurple,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToLogin(BuildContext context) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+    if (result == true) {
+      onLoginSuccess();
+    }
+  }
+
+  void _navigateToRegister(BuildContext context) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
+    if (result == true) {
+      onLoginSuccess();
+    }
   }
 }

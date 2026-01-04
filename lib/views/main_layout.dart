@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config/app_theme.dart';
 import '../controllers/navigation_controller.dart';
+import '../controllers/auth_controller.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home_screen.dart';
 import 'popular_screen.dart';
 import 'latest_screen.dart';
 import 'genres_screen.dart';
 import 'placeholder_screens.dart';
+import 'favorites_screen.dart';
 import 'search_screen.dart';
+import 'login_screen.dart';
+import 'profile_screen.dart';
 
 /// Main layout with smooth page transitions
 class MainLayout extends StatefulWidget {
@@ -134,17 +139,10 @@ class _MainLayoutState extends State<MainLayout> {
           : null,
       titleSpacing: isHome ? AppTheme.spacingL : null,
       title: isHome
-          ? Image.network(
-              'https://komikkuya.my.id/assets/icon_nobg.png',
+          ? Image.asset(
+              'lib/assets/icon_nobg.png',
               height: 35,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Text(
-                titles[currentIndex],
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                ),
-              ),
             )
           : Text(
               titles[currentIndex],
@@ -156,7 +154,92 @@ class _MainLayoutState extends State<MainLayout> {
           icon: const Icon(Icons.search),
           tooltip: 'Search',
         ),
+        _buildProfileButton(),
       ],
     );
+  }
+
+  Widget _buildProfileButton() {
+    return Consumer<AuthController>(
+      builder: (context, authController, child) {
+        return GestureDetector(
+          onTap: () => _navigateToProfile(authController),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: authController.isLoggedIn && authController.avatarUrl != null
+                ? Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.accentPurple,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: authController.avatarUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: AppTheme.cardBlack,
+                          child: const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: AppTheme.textGrey,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: AppTheme.cardBlack,
+                          child: const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: AppTheme.textGrey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: authController.isLoggedIn
+                          ? AppTheme.accentPurple.withAlpha(30)
+                          : AppTheme.cardBlack,
+                      border: Border.all(
+                        color: authController.isLoggedIn
+                            ? AppTheme.accentPurple
+                            : AppTheme.dividerColor,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(
+                      authController.isLoggedIn ? Icons.person : Icons.login,
+                      size: 18,
+                      color: authController.isLoggedIn
+                          ? AppTheme.accentPurple
+                          : AppTheme.textGrey,
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _navigateToProfile(AuthController authController) {
+    if (authController.isLoggedIn) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 }

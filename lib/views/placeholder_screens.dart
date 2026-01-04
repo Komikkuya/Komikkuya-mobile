@@ -15,20 +15,6 @@ class HistoryScreen extends StatelessWidget {
   }
 }
 
-/// Placeholder screen for Favorites tab
-class FavoritesScreen extends StatelessWidget {
-  const FavoritesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const _PlaceholderScreen(
-      icon: Icons.favorite,
-      title: 'Favorites',
-      subtitle: 'Your favorite manga will appear here',
-    );
-  }
-}
-
 /// Generic placeholder screen widget
 class _PlaceholderScreen extends StatelessWidget {
   final IconData icon;

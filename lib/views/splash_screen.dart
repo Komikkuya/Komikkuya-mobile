@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
+import '../controllers/auth_controller.dart';
 
 /// Animated splash screen with premium effects
 class SplashScreen extends StatefulWidget {
@@ -139,11 +141,24 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     if (hasInternet) {
+      // Initialize auth (validate stored JWT token)
+      await _initializeAuth();
+      if (!mounted) return;
       widget.onComplete();
     } else {
       setState(() {
         _showNoInternetError = true;
       });
+    }
+  }
+
+  /// Initialize auth - validate stored JWT and load user profile
+  Future<void> _initializeAuth() async {
+    try {
+      final authController = context.read<AuthController>();
+      await authController.initialize();
+    } catch (e) {
+      debugPrint('SplashScreen: Auth init error: $e');
     }
   }
 

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../models/custom_manga_model.dart';
+import '../controllers/favorites_controller.dart';
 import 'shimmer_loading.dart';
 
 /// Netflix-style hero carousel for featured manga
@@ -26,6 +28,31 @@ class _HeroCarouselState extends State<HeroCarousel> {
   int _currentIndex = 0;
   final CarouselSliderController _carouselController =
       CarouselSliderController();
+
+  /// Toggle favorite status for hero manga
+  Future<void> _toggleFavorite(CustomManga manga) async {
+    final favController = context.read<FavoritesController>();
+
+    // Detect source from URL
+    String source = 'westmanga';
+    if (manga.url.contains('komiku.org')) {
+      source = 'komiku';
+    } else if (manga.url.contains('weebcentral.com')) {
+      source = 'international';
+    } else if (manga.url.contains('westmanga')) {
+      source = 'westmanga';
+    }
+
+    await favController.toggleFavorite(
+      id: manga.url,
+      slug: manga.url,
+      title: manga.title,
+      url: manga.url,
+      cover: manga.imageUrl,
+      type: 'manga',
+      source: source,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,16 +256,29 @@ class _HeroCarouselState extends State<HeroCarousel> {
               ),
             ),
             const SizedBox(width: 8),
-            // Bookmark button
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-              child: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.bookmark_outline, color: Colors.white),
-              ),
+            // Favorite button
+            Consumer<FavoritesController>(
+              builder: (context, favController, child) {
+                final isFav = favController.isFavorited(manga.url);
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isFav
+                        ? Colors.red.withAlpha(60)
+                        : Colors.white.withAlpha(50),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                    border: isFav
+                        ? Border.all(color: Colors.red.withAlpha(100))
+                        : null,
+                  ),
+                  child: IconButton(
+                    onPressed: () => _toggleFavorite(manga),
+                    icon: Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      color: isFav ? Colors.red : Colors.white,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
