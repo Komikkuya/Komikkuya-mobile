@@ -9,7 +9,7 @@ import 'home_screen.dart';
 import 'popular_screen.dart';
 import 'latest_screen.dart';
 import 'genres_screen.dart';
-import 'placeholder_screens.dart';
+import 'history_screen.dart';
 import 'favorites_screen.dart';
 import 'search_screen.dart';
 import 'login_screen.dart';

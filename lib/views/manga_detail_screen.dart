@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:share_plus/share_plus.dart';
 import '../config/app_theme.dart';
 import '../controllers/manga_detail_controller.dart';
 import '../controllers/genres_controller.dart';
 import '../controllers/navigation_controller.dart';
 import '../controllers/favorites_controller.dart';
 import '../models/manga_detail_model.dart';
+import '../models/source_type.dart';
 import 'chapter_reader_screen.dart';
 
 /// Manga detail screen with Crunchyroll/Netflix/Webtoon inspired design
@@ -54,6 +56,8 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
               chapterUrl: chapter.url,
               mangaUrl: widget.mangaUrl,
               mangaTitle: _controller.mangaDetail?.title,
+              coverImage:
+                  widget.coverImage ?? _controller.mangaDetail?.coverImage,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -94,6 +98,37 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
       type: manga.type,
       source: source,
     );
+  }
+
+  /// Share manga with custom URL format
+  void _shareManga(MangaDetail manga) {
+    // Target: https://www.komikkuya.my.id/manga/[slug]
+    // Or for Weebcentral: https://www.komikkuya.my.id/manga/series/[slug]
+
+    String slug = '';
+    final uri = Uri.tryParse(widget.mangaUrl);
+
+    if (uri != null) {
+      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      if (manga.source == MangaSource.international &&
+          segments.contains('series')) {
+        // Weebcentral: keeps series/[id]
+        final idx = segments.indexOf('series');
+        if (idx < segments.length - 1) {
+          slug = 'series/${segments[idx + 1]}';
+        }
+      } else if (segments.isNotEmpty) {
+        // Others: just the last segment (the slug)
+        slug = segments.last;
+      }
+    }
+
+    final shareUrl = 'https://www.komikkuya.my.id/manga/$slug';
+    final message =
+        'Check out "${manga.title}" on Komikkuya!\n\nRead here: $shareUrl';
+
+    SharePlus.instance.share(ShareParams(text: message, subject: manga.title));
+    debugPrint('MangaDetailScreen: Sharing URL -> $shareUrl');
   }
 
   @override
@@ -327,22 +362,7 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
           ),
           child: IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () {
-              // TODO: Share manga
-            },
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-          decoration: BoxDecoration(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.favorite_border, color: Colors.white),
-            onPressed: () {
-              // TODO: Add to favorites
-            },
+            onPressed: () => _shareManga(manga),
           ),
         ),
       ],

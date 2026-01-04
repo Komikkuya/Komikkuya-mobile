@@ -1,19 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
 
-/// Placeholder screen for History tab
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const _PlaceholderScreen(
-      icon: Icons.history,
-      title: 'History',
-      subtitle: 'Your reading history will appear here',
-    );
-  }
-}
+// Note: HistoryScreen has been moved to history_screen.dart
 
 /// Generic placeholder screen widget
 class _PlaceholderScreen extends StatelessWidget {

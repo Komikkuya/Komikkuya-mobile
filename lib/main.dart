@@ -11,6 +11,7 @@ import 'controllers/latest_controller.dart';
 import 'controllers/genres_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/favorites_controller.dart';
+import 'controllers/history_controller.dart';
 import 'services/storage_service.dart';
 import 'views/main_layout.dart';
 import 'views/splash_screen.dart';
@@ -50,6 +51,7 @@ class KomikkuyaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GenresController()),
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => FavoritesController()),
+        ChangeNotifierProvider(create: (_) => HistoryController()),
       ],
       child: MaterialApp(
         title: 'Komikkuya',

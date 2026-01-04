@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../config/app_theme.dart';
 import '../controllers/chapter_reader_controller.dart';
+import '../controllers/history_controller.dart';
 import '../models/chapter_content_model.dart';
 
 /// Chapter reader screen with Webtoon/Netflix style vertical scrolling
@@ -12,12 +13,14 @@ class ChapterReaderScreen extends StatefulWidget {
   final String chapterUrl;
   final String? mangaUrl;
   final String? mangaTitle;
+  final String? coverImage;
 
   const ChapterReaderScreen({
     super.key,
     required this.chapterUrl,
     this.mangaUrl,
     this.mangaTitle,
+    this.coverImage,
   });
 
   @override
@@ -49,10 +52,59 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
     // Set immersive mode
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    _controller.loadChapter(widget.chapterUrl);
+    // Load chapter and save to history when done
+    _controller.loadChapter(widget.chapterUrl).then((_) {
+      if (_controller.chapterContent != null) {
+        _saveToHistory();
+      }
+    });
 
     // Listen to scroll
     _scrollController.addListener(_onScroll);
+  }
+
+  /// Save reading progress to history
+  void _saveToHistory() {
+    final chapter = _controller.chapterContent;
+    if (chapter == null) return;
+
+    // Convert full URL to relative path for better source detection
+    // Example: komiku.org/slug/ -> /chapter/slug/
+    // Example: westmanga.me/view/slug/ -> /chapter/view/slug/
+    // Example: weebcentral.com/chapters/slug/ -> /chapter/chapters/slug/
+    String relativeUrl = widget.chapterUrl;
+    try {
+      final uri = Uri.parse(widget.chapterUrl);
+      String path = uri.path;
+      // Clean up double slashes if any
+      while (path.contains('//')) {
+        path = path.replaceAll('//', '/');
+      }
+      // Ensure it starts with /
+      if (!path.startsWith('/')) path = '/$path';
+
+      relativeUrl = '/chapter$path';
+    } catch (e) {
+      debugPrint('ChapterReaderScreen: Error parsing URL for history: $e');
+    }
+
+    // Use first image from chapter as fallback if coverImage is missing
+    String? displayImage = widget.coverImage;
+    if (displayImage == null && chapter.images.isNotEmpty) {
+      displayImage = chapter.images.first.url;
+    }
+
+    final historyController = context.read<HistoryController>();
+    historyController.saveHistory(
+      title: widget.mangaTitle ?? chapter.title.split(' - ').first,
+      chapterTitle: chapter.title,
+      url: relativeUrl,
+      image: displayImage,
+      type: null,
+    );
+    debugPrint(
+      'HistoryController: Saved relative history with image: $relativeUrl',
+    );
   }
 
   @override

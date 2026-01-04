@@ -12,6 +12,10 @@ class AuthConfig {
   // Favorites endpoints
   static const String favorites = '/favorites';
 
+  // Reading history endpoints
+  static const String readingHistory = '/reading-history';
+  static const String readingHistoryAll = '/reading-history/all';
+
   // Full URLs
   static String get registerUrl => '$baseUrl$register';
   static String get loginUrl => '$baseUrl$login';
@@ -23,4 +27,8 @@ class AuthConfig {
   static String get favoritesUrl => '$baseUrl$favorites';
   static String favoriteByIdUrl(String id) => '$baseUrl$favorites/$id';
   static String checkFavoriteUrl(String id) => '$baseUrl$favorites/check/$id';
+
+  // Reading history URLs
+  static String get readingHistoryUrl => '$baseUrl$readingHistory';
+  static String get readingHistoryAllUrl => '$baseUrl$readingHistoryAll';
 }
