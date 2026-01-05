@@ -72,6 +72,7 @@ jobs:
         working-directory: build/ios/iphoneos
 
       - name: Verify Payload structure
+        working-directory: build/ios/iphoneos
         run: |
           echo "=== Payload structure ==="
           ls -la Payload/
