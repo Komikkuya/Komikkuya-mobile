@@ -77,6 +77,8 @@ Unduh versi terbaru dari halaman [**Releases**](https://github.com/Komikkuya/Kom
 |--------|------------|
 | **Komikkuya-X.ipa** | Perlu di-sideload (AltStore/Scarlet/Sideloadly) |
 
+> 💡 **Rekomendasi**: Gunakan [**AppleJr IPA Signer**](https://applejr.net/) untuk sign dan install IPA dengan mudah!
+
 ---
 
 ## 🛠️ Build dari Source
