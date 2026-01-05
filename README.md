@@ -60,10 +60,22 @@
 
 Unduh versi terbaru dari halaman [**Releases**](https://github.com/Komikkuya/Komikkuya-mobile/releases):
 
-| Platform | Download |
-|----------|----------|
-| 🤖 Android | [Download APK](https://github.com/Komikkuya/Komikkuya-mobile/releases/latest) |
-| 🍎 iOS | [Download IPA](https://github.com/Komikkuya/Komikkuya-mobile/releases/latest) |
+### 🤖 Android
+
+| Varian | Untuk Perangkat | Ukuran |
+|--------|-----------------|--------|
+| **Komikkuya-X.apk** | Semua perangkat (recommended) | ~53 MB |
+| Komikkuya-X-arm64-v8a.apk | HP Android modern (2017+) | ~18 MB |
+| Komikkuya-X-armeabi-v7a.apk | HP Android lama (32-bit) | ~16 MB |
+| Komikkuya-X-x86_64.apk | Emulator / Chromebook | ~18 MB |
+
+> 💡 **Tidak yakin pilih yang mana?** Download saja **Komikkuya-X.apk** (tanpa suffix) — ini mendukung semua perangkat Android!
+
+### 🍎 iOS
+
+| Varian | Keterangan |
+|--------|------------|
+| **Komikkuya-X.ipa** | Perlu di-sideload (AltStore/Scarlet/Sideloadly) |
 
 ---
 
