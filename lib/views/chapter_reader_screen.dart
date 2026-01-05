@@ -7,6 +7,7 @@ import '../config/app_theme.dart';
 import '../controllers/chapter_reader_controller.dart';
 import '../controllers/history_controller.dart';
 import '../models/chapter_content_model.dart';
+import '../models/reader_settings_model.dart';
 
 /// Chapter reader screen with Webtoon/Netflix style vertical scrolling
 class ChapterReaderScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
   late ChapterReaderController _controller;
   late ScrollController _scrollController;
   late AnimationController _animationController;
+  ReaderSettings _readerSettings = const ReaderSettings();
 
   String? _initialMangaUrl;
 
@@ -41,6 +43,9 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
     _controller = ChapterReaderController();
     _scrollController = ScrollController();
     _initialMangaUrl = widget.mangaUrl;
+
+    // Load reader settings
+    _loadReaderSettings();
 
     // Animation for controls fade
     _animationController = AnimationController(
@@ -56,11 +61,59 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
     _controller.loadChapter(widget.chapterUrl).then((_) {
       if (_controller.chapterContent != null) {
         _saveToHistory();
+        _preloadAllImages();
       }
     });
 
     // Listen to scroll
     _scrollController.addListener(_onScroll);
+  }
+
+  /// Load reader settings from SharedPreferences
+  Future<void> _loadReaderSettings() async {
+    final settings = await ReaderSettings.load();
+    if (mounted) {
+      setState(() => _readerSettings = settings);
+    }
+  }
+
+  /// Preload all images for seamless reading
+  void _preloadAllImages() {
+    if (!_readerSettings.preloadImages) return;
+    final chapter = _controller.chapterContent;
+    if (chapter == null) return;
+
+    for (final image in chapter.images) {
+      final url = _getOptimizedImageUrl(image.url);
+      precacheImage(CachedNetworkImageProvider(url), context);
+    }
+    debugPrint('ChapterReader: Preloaded ${chapter.images.length} images');
+  }
+
+  /// Get optimized image URL based on settings
+  String _getOptimizedImageUrl(String originalUrl) {
+    // Skip optimization for High quality with Data Saver off
+    if (_readerSettings.quality == ImageQuality.high &&
+        !_readerSettings.dataSaverMode) {
+      return originalUrl;
+    }
+
+    // Use wsrv.nl proxy for resizing/compression
+    String proxyUrl =
+        'https://wsrv.nl/?url=${Uri.encodeComponent(originalUrl)}';
+
+    // Add width resize
+    final width = _readerSettings.quality.width;
+    if (width != null) {
+      proxyUrl += '&w=$width';
+    }
+
+    // Add compression for data saver
+    if (_readerSettings.dataSaverMode) {
+      proxyUrl += '&q=60';
+    }
+
+    return proxyUrl;
   }
 
   /// Save reading progress to history
@@ -340,8 +393,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
   }
 
   Widget _buildImageItem(ChapterImage image, int index) {
-    return CachedNetworkImage(
-      imageUrl: image.url,
+    final imageUrl = _getOptimizedImageUrl(image.url);
+
+    final imageWidget = CachedNetworkImage(
+      imageUrl: imageUrl,
       fit: BoxFit.fitWidth,
       width: double.infinity,
       placeholder: (context, url) => Container(
@@ -387,6 +442,20 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
         ),
       ),
     );
+
+    // Wrap in InteractiveViewer for pinch-to-zoom if enabled
+    if (_readerSettings.zoomEnabled) {
+      return InteractiveViewer(
+        minScale: 0.5,
+        maxScale: 4.0,
+        panEnabled: true,
+        scaleEnabled: true,
+        clipBehavior: Clip.none,
+        child: imageWidget,
+      );
+    }
+
+    return imageWidget;
   }
 
   Widget _buildEndCard(ChapterContent chapter) {
@@ -567,6 +636,179 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
     );
   }
 
+  /// Show settings bottom sheet
+  void _showSettingsSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardBlack,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingL),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Icon(Icons.tune, color: AppTheme.accentPurple),
+                  const SizedBox(width: AppTheme.spacingS),
+                  const Text(
+                    'Reader Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: AppTheme.textGrey),
+                  ),
+                ],
+              ),
+              const Divider(color: AppTheme.surfaceBlack),
+
+              // Image Quality
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.high_quality,
+                  color: AppTheme.accentPurple,
+                ),
+                title: const Text(
+                  'Image Quality',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  _readerSettings.quality.description,
+                  style: const TextStyle(color: AppTheme.textGrey),
+                ),
+                trailing: DropdownButton<ImageQuality>(
+                  value: _readerSettings.quality,
+                  dropdownColor: AppTheme.cardBlack,
+                  underline: const SizedBox(),
+                  items: ImageQuality.values
+                      .map(
+                        (q) => DropdownMenuItem(
+                          value: q,
+                          child: Text(
+                            q.displayName,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(
+                        () => _readerSettings = _readerSettings.copyWith(
+                          quality: value,
+                        ),
+                      );
+                      setSheetState(() {});
+                      _readerSettings.save();
+                    }
+                  },
+                ),
+              ),
+
+              // Data Saver
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(
+                  Icons.data_saver_on,
+                  color: AppTheme.accentPurple,
+                ),
+                title: const Text(
+                  'Data Saver',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Compress images to 60%',
+                  style: TextStyle(color: AppTheme.textGrey),
+                ),
+                value: _readerSettings.dataSaverMode,
+                activeThumbColor: AppTheme.accentPurple,
+                onChanged: (value) {
+                  setState(
+                    () => _readerSettings = _readerSettings.copyWith(
+                      dataSaverMode: value,
+                    ),
+                  );
+                  setSheetState(() {});
+                  _readerSettings.save();
+                },
+              ),
+
+              // Preload Images
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(
+                  Icons.download_for_offline,
+                  color: AppTheme.accentPurple,
+                ),
+                title: const Text(
+                  'Preload Images',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Load all images immediately',
+                  style: TextStyle(color: AppTheme.textGrey),
+                ),
+                value: _readerSettings.preloadImages,
+                activeThumbColor: AppTheme.accentPurple,
+                onChanged: (value) {
+                  setState(
+                    () => _readerSettings = _readerSettings.copyWith(
+                      preloadImages: value,
+                    ),
+                  );
+                  setSheetState(() {});
+                  _readerSettings.save();
+                },
+              ),
+
+              // Zoom Enabled
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(
+                  Icons.zoom_in,
+                  color: AppTheme.accentPurple,
+                ),
+                title: const Text(
+                  'Pinch to Zoom',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Enable zoom gestures on images',
+                  style: TextStyle(color: AppTheme.textGrey),
+                ),
+                value: _readerSettings.zoomEnabled,
+                activeThumbColor: AppTheme.accentPurple,
+                onChanged: (value) {
+                  setState(
+                    () => _readerSettings = _readerSettings.copyWith(
+                      zoomEnabled: value,
+                    ),
+                  );
+                  setSheetState(() {});
+                  _readerSettings.save();
+                },
+              ),
+
+              const SizedBox(height: AppTheme.spacingM),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBottomControls(
     ChapterContent chapter,
     ChapterReaderController controller,
@@ -624,7 +866,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
                     icon: Icons.settings,
                     label: 'Settings',
                     enabled: true,
-                    onTap: () {},
+                    onTap: _showSettingsSheet,
                   ),
                 ),
                 // Next chapter
