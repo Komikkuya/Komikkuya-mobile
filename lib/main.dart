@@ -13,10 +13,12 @@ import 'controllers/auth_controller.dart';
 import 'controllers/favorites_controller.dart';
 import 'controllers/history_controller.dart';
 import 'services/storage_service.dart';
+import 'services/notification_navigation_service.dart';
 import 'views/main_layout.dart';
 import 'views/splash_screen.dart';
 import 'views/login_screen.dart';
 import 'views/register_screen.dart';
+import 'views/manga_detail_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,10 +58,27 @@ class KomikkuyaApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Komikkuya',
         debugShowCheckedModeBanner: false,
+        navigatorKey: NotificationNavigationService.navigatorKey,
         theme: _buildTheme(),
         home: const AppWrapper(),
+        onGenerateRoute: _generateRoute,
       ),
     );
+  }
+
+  /// Generate routes for named navigation
+  Route<dynamic>? _generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case '/detail':
+        final args = settings.arguments as Map<String, dynamic>?;
+        final url = args?['url'] as String? ?? '';
+        return MaterialPageRoute(
+          builder: (_) => MangaDetailScreen(mangaUrl: url),
+          settings: settings,
+        );
+      default:
+        return null;
+    }
   }
 
   ThemeData _buildTheme() {
@@ -162,7 +181,28 @@ class _AppWrapperState extends State<AppWrapper>
       setState(() {
         _showSplash = false;
       });
+
+      // Process pending notification navigation after splash and auth check
+      _processPendingNotification();
     });
+  }
+
+  /// Process pending notification deep link
+  void _processPendingNotification() {
+    final navService = NotificationNavigationService();
+    if (navService.hasPendingNavigation && _isLoggedIn) {
+      // Wait a bit for the UI to settle, then navigate
+      Future.delayed(const Duration(milliseconds: 500), () {
+        final pendingUrl = navService.consumePendingNavigation();
+        if (pendingUrl != null && mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MangaDetailScreen(mangaUrl: pendingUrl),
+            ),
+          );
+        }
+      });
+    }
   }
 
   /// Sync favorites and history with server

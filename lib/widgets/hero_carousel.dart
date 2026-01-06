@@ -128,7 +128,7 @@ class _HeroCarouselState extends State<HeroCarousel>
           left: 0,
           right: 0,
           child: Container(
-            height: 700, // Even smoother fade to black
+            height: 400, // Even smoother fade to black
             decoration: const BoxDecoration(gradient: AppTheme.heroGradient),
           ),
         ),

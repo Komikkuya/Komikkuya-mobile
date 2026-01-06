@@ -9,6 +9,9 @@ import '../controllers/auth_controller.dart';
 import '../controllers/favorites_controller.dart';
 import '../controllers/history_controller.dart';
 import '../models/cache_settings_model.dart';
+import '../services/notification_service.dart';
+import '../services/background_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Profile screen with Discord integration
 class ProfileScreen extends StatefulWidget {
@@ -27,12 +30,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _currentCacheSize = 0;
   bool _isClearing = false;
 
+  // Notification settings
+  bool _notificationsEnabled = false;
+  bool _hasNotificationPermission = false;
+  bool _isTogglingNotifications = false;
+
   @override
   void initState() {
     super.initState();
     _usernameController.text =
         context.read<AuthController>().user?.username ?? '';
     _loadCacheInfo();
+    _loadNotificationSettings();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    final backgroundService = BackgroundService();
+    final notificationService = NotificationService();
+
+    final enabled = await backgroundService.isEnabled();
+    final hasPermission = await notificationService.hasPermission();
+
+    if (mounted) {
+      setState(() {
+        _notificationsEnabled = enabled;
+        _hasNotificationPermission = hasPermission;
+      });
+    }
   }
 
   Future<void> _loadCacheInfo() async {
@@ -262,6 +286,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (authController.hasDiscord) const SizedBox(height: 24),
                   // Profile info
                   _buildProfileInfo(authController),
+                  const SizedBox(height: 24),
+                  // Notification section
+                  _buildNotificationSection(),
                   const SizedBox(height: 24),
                   // Storage section
                   _buildStorageSection(),
@@ -568,6 +595,417 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
       ],
     );
+  }
+
+  Widget _buildNotificationSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBlack,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceBlack),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          const Row(
+            children: [
+              Icon(
+                Icons.notifications_active,
+                color: AppTheme.accentPurple,
+                size: 24,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Notifications',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Enable notifications toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Update Notifications',
+                      style: TextStyle(color: Colors.white, fontSize: 15),
+                    ),
+                    Text(
+                      'Get notified when new chapters are available',
+                      style: TextStyle(color: AppTheme.textGrey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              _isTogglingNotifications
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.accentPurple,
+                      ),
+                    )
+                  : Switch(
+                      value: _notificationsEnabled,
+                      activeColor: AppTheme.accentPurple,
+                      onChanged: (value) => _toggleNotifications(value),
+                    ),
+            ],
+          ),
+
+          // Permission status
+          if (!_hasNotificationPermission && _notificationsEnabled)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Notification permission required',
+                      style: TextStyle(color: Colors.orange, fontSize: 13),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _requestNotificationPermission,
+                    child: const Text(
+                      'Allow',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
+          const Divider(color: AppTheme.dividerColor),
+          const SizedBox(height: 16),
+
+          // Battery optimization button
+          GestureDetector(
+            onTap: _openBatteryOptimizationSettings,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceBlack,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.dividerColor),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.battery_saver, color: AppTheme.textGrey),
+                  SizedBox(width: 8),
+                  Text(
+                    'Disable Battery Optimization',
+                    style: TextStyle(
+                      color: AppTheme.textGrey,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Required for reliable background notifications on some devices',
+            style: TextStyle(color: AppTheme.textGrey, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+
+          // Test notification button (for debugging)
+          if (_notificationsEnabled) ...[
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: _sendTestNotification,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPurple.withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.accentPurple.withAlpha(100),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.send, color: AppTheme.accentPurple, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Send Test Notification',
+                      style: TextStyle(
+                        color: AppTheme.accentPurple,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleNotifications(bool enable) async {
+    setState(() => _isTogglingNotifications = true);
+
+    try {
+      final backgroundService = BackgroundService();
+      final notificationService = NotificationService();
+
+      if (enable) {
+        // Initialize services
+        await notificationService.initialize();
+        await backgroundService.initialize();
+
+        // Request permission
+        final hasPermission = await notificationService.requestPermission();
+
+        if (hasPermission) {
+          await backgroundService.startPeriodicTask();
+          setState(() {
+            _notificationsEnabled = true;
+            _hasNotificationPermission = true;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppTheme.accentPurple,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Notifications enabled!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textWhite,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppTheme.cardBlack,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          }
+        } else {
+          setState(() {
+            _hasNotificationPermission = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Please allow notification permission',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textWhite,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppTheme.cardBlack,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          }
+        }
+      } else {
+        await backgroundService.stopPeriodicTask();
+        setState(() => _notificationsEnabled = false);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(
+                    Icons.notifications_off,
+                    color: AppTheme.textGrey,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Notifications disabled',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textWhite,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppTheme.cardBlack,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('ProfileScreen: Toggle notifications error - $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTogglingNotifications = false);
+    }
+  }
+
+  Future<void> _sendTestNotification() async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.initialize();
+      await notificationService.showUpdateNotification(
+        title: 'Test Notification',
+        body: 'Background notifications are working!',
+        payload: null,
+        // Sample image from API for testing
+        imageUrl:
+            'https://thumbnail.komiku.org/uploads/manga/juujika-no-rokunin/manga_img_horizontal-Komik-Juujika-no-Rokunin.jpg?resize=450,235',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: AppTheme.accentPurple,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Test notification sent!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textWhite,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.cardBlack,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('ProfileScreen: Test notification error - $e');
+    }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    final notificationService = NotificationService();
+    final granted = await notificationService.requestPermission();
+
+    setState(() => _hasNotificationPermission = granted);
+
+    if (granted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: AppTheme.accentPurple,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Notification permission granted!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textWhite,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.cardBlack,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openBatteryOptimizationSettings() async {
+    try {
+      await openAppSettings();
+    } catch (e) {
+      debugPrint('ProfileScreen: Open battery settings error - $e');
+    }
   }
 
   Widget _buildStorageSection() {
