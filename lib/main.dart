@@ -153,6 +153,11 @@ class _AppWrapperState extends State<AppWrapper>
     final authController = context.read<AuthController>();
     _isLoggedIn = authController.isLoggedIn;
 
+    // Sync data if logged in
+    if (_isLoggedIn) {
+      _syncAppData();
+    }
+
     _transitionController.forward().then((_) {
       setState(() {
         _showSplash = false;
@@ -160,8 +165,17 @@ class _AppWrapperState extends State<AppWrapper>
     });
   }
 
+  /// Sync favorites and history with server
+  void _syncAppData() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FavoritesController>().loadFavorites();
+      context.read<HistoryController>().loadHistory(limit: 50);
+    });
+  }
+
   /// Called when user logs in from login screen
   void _onLoginSuccess() {
+    _syncAppData();
     setState(() {
       _isLoggedIn = true;
     });

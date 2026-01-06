@@ -29,22 +29,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _navigateToDetail(FavoriteItem item) async {
     // Reconstruct full URL if not stored
     String navUrl;
-    if (item.url != null && item.url!.isNotEmpty) {
+
+    // For international/weebcentral, URL is required (complex format)
+    final source = item.source?.toLowerCase() ?? '';
+
+    if (item.url != null &&
+        item.url!.isNotEmpty &&
+        item.url!.startsWith('http')) {
+      // Use stored full URL
       navUrl = item.url!;
+    } else if (source == 'komiku') {
+      navUrl = 'https://komiku.org/manga/${item.slug}/';
+    } else if (source == 'westmanga') {
+      navUrl = 'https://westmanga.me/comic/${item.slug}/';
+    } else if (source == 'international' || source == 'weebcentral') {
+      // For international, if no URL stored, try using slug as full path
+      navUrl = 'https://weebcentral.com/series/${item.slug}';
     } else {
-      // Reconstruct based on source
-      final source = item.source?.toLowerCase() ?? '';
-      if (source == 'komiku') {
-        navUrl = 'https://komiku.org/manga/${item.slug}/';
-      } else if (source == 'westmanga') {
-        navUrl = 'https://westmanga.me/comic/${item.slug}/';
-      } else if (source == 'international' || source == 'weebcentral') {
-        navUrl = 'https://weebcentral.com/series/${item.slug}/';
-      } else {
-        // Unknown source - try each source in order
-        // Priority: komiku → westmanga → weebcentral
-        navUrl = await _findWorkingUrl(item.slug);
-      }
+      // Unknown source - try each source in order
+      navUrl = await _findWorkingUrl(item.slug);
     }
 
     debugPrint('FavoritesScreen._navigateToDetail: id=${item.id}');

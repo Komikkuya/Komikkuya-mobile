@@ -18,8 +18,12 @@ class AppTheme {
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Colors.transparent, Color(0x80141414), Color(0xE6141414)],
-    stops: [0.0, 0.5, 1.0],
+    colors: [
+      Colors.transparent,
+      Color(0x99141414), // 60%
+      primaryBlack, // 100%
+    ],
+    stops: [0.0, 0.6, 1.0],
   );
 
   static const LinearGradient cardGradient = LinearGradient(

@@ -101,11 +101,15 @@ class FavoritesController extends ChangeNotifier {
       id: cleanId,
       slug: cleanSlug,
       title: title,
-      url: url ?? id, // Keep original URL for navigation
+      url: url ?? id,
       cover: cover,
       type: type,
       source: source,
     );
+
+    debugPrint('FavoritesController.addFavorite: url param=$url');
+    debugPrint('FavoritesController.addFavorite: item.url=${item.url}');
+    debugPrint('FavoritesController.addFavorite: toJson=${item.toJson()}');
 
     // Optimistic update
     _favoriteIds.add(cleanId);

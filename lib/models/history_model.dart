@@ -48,7 +48,9 @@ class HistoryItem {
     return HistoryItem(
       id: parsedId,
       title: (json['title'] ?? 'Unknown Manga').toString(),
-      chapterTitle: (json['chapter_title'] ?? 'Unknown Chapter').toString(),
+      chapterTitle:
+          (json['chapterTitle'] ?? json['chapter_title'] ?? 'Unknown Chapter')
+              .toString(),
       url: (json['url'] ?? '').toString(),
       image: json['image'] as String?,
       type: json['type'] as String?,
@@ -61,11 +63,11 @@ class HistoryItem {
 
   Map<String, dynamic> toJson() => {
     'title': title,
-    'chapterTitle': chapterTitle,
+    'chapterTitle': chapterTitle, // API expects camelCase
     'url': url,
     'image': image,
     'type': type,
-    'time': time.millisecondsSinceEpoch,
+    'time': time.millisecondsSinceEpoch, // API expects bigint
   };
 
   /// Create a copy with updated fields

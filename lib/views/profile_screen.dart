@@ -6,6 +6,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../config/app_theme.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/favorites_controller.dart';
+import '../controllers/history_controller.dart';
 import '../models/cache_settings_model.dart';
 
 /// Profile screen with Discord integration
@@ -201,6 +203,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm == true && mounted) {
+      // Clear data from controllers
+      context.read<FavoritesController>().clear();
+      context.read<HistoryController>().clear();
+
       await context.read<AuthController>().logout();
       // Pop all routes to return to root (auth required screen)
       Navigator.of(context).popUntil((route) => route.isFirst);

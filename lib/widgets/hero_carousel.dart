@@ -24,10 +24,32 @@ class HeroCarousel extends StatefulWidget {
   State<HeroCarousel> createState() => _HeroCarouselState();
 }
 
-class _HeroCarouselState extends State<HeroCarousel> {
+class _HeroCarouselState extends State<HeroCarousel>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   final CarouselSliderController _carouselController =
       CarouselSliderController();
+  late AnimationController _progressController;
+  static const int _slideDurationSeconds = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(seconds: _slideDurationSeconds),
+        )..addListener(() {
+          setState(() {});
+        });
+    _progressController.forward();
+  }
+
+  @override
+  void dispose() {
+    _progressController.dispose();
+    super.dispose();
+  }
 
   /// Toggle favorite status for hero manga
   Future<void> _toggleFavorite(CustomManga manga) async {
@@ -64,6 +86,11 @@ class _HeroCarouselState extends State<HeroCarousel> {
       return const SizedBox.shrink();
     }
 
+    // Watch favorites to rebuild on any change
+    final favController = context.watch<FavoritesController>();
+    final currentManga = widget.mangaList[_currentIndex];
+    final isFav = favController.isFavorited(currentManga.url);
+
     return Stack(
       children: [
         // Carousel
@@ -74,12 +101,14 @@ class _HeroCarouselState extends State<HeroCarousel> {
             height: AppTheme.heroHeight,
             viewportFraction: 1.0,
             autoPlay: true,
-            autoPlayInterval: const Duration(seconds: 5),
-            autoPlayAnimationDuration: const Duration(milliseconds: 800),
-            autoPlayCurve: Curves.easeInOutCubic,
+            autoPlayInterval: const Duration(seconds: _slideDurationSeconds),
+            autoPlayAnimationDuration: const Duration(milliseconds: 1200),
+            autoPlayCurve: Curves.easeInOutQuart,
             onPageChanged: (index, reason) {
               setState(() {
                 _currentIndex = index;
+                _progressController.reset();
+                _progressController.forward();
               });
             },
           ),
@@ -99,7 +128,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
           left: 0,
           right: 0,
           child: Container(
-            height: 200,
+            height: 700, // Even smoother fade to black
             decoration: const BoxDecoration(gradient: AppTheme.heroGradient),
           ),
         ),
@@ -108,10 +137,15 @@ class _HeroCarouselState extends State<HeroCarousel> {
           bottom: 60,
           left: AppTheme.spacingL,
           right: AppTheme.spacingL,
-          child: _buildContentOverlay(widget.mangaList[_currentIndex]),
+          child: _buildContentOverlay(currentManga, isFav),
         ),
         // Indicator dots
-        Positioned(bottom: 20, left: 0, right: 0, child: _buildIndicators()),
+        Positioned(
+          bottom: 20,
+          left: AppTheme.spacingL,
+          right: AppTheme.spacingL,
+          child: _buildIndicators(),
+        ),
       ],
     );
   }
@@ -139,7 +173,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
     );
   }
 
-  Widget _buildContentOverlay(CustomManga manga) {
+  Widget _buildContentOverlay(CustomManga manga, bool isFav) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -163,7 +197,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'HOT',
+                      'REKOMENDASI ADMIN',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -222,63 +256,57 @@ class _HeroCarouselState extends State<HeroCarousel> {
         Row(
           children: [
             // Play/Read button
-            ElevatedButton.icon(
-              onPressed: widget.onMangaTap != null
-                  ? () => widget.onMangaTap!(manga)
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accentPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+            Expanded(
+              flex: 4,
+              child: ElevatedButton.icon(
+                onPressed: widget.onMangaTap != null
+                    ? () => widget.onMangaTap!(manga)
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                icon: const Icon(Icons.play_arrow, size: 28),
+                label: Text(
+                  'READ NOW',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.play_arrow, size: 20),
-              label: const Text(
-                'Read Now',
-                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 12),
-            // Info button
+            // Favorite button (Bookmark style ala Crunchyroll)
             Container(
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isFav
+                      ? AppTheme.accentPurple
+                      : Colors.white.withOpacity(0.5),
+                  width: 2,
+                ),
+                color: isFav
+                    ? AppTheme.accentPurple.withOpacity(0.15)
+                    : Colors.white.withOpacity(0.05),
               ),
               child: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.info_outline, color: Colors.white),
+                onPressed: () => _toggleFavorite(manga),
+                icon: Icon(
+                  isFav ? Icons.bookmark : Icons.bookmark_outline,
+                  color: isFav ? AppTheme.accentPurple : Colors.white,
+                  size: 28,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            // Favorite button
-            Consumer<FavoritesController>(
-              builder: (context, favController, child) {
-                final isFav = favController.isFavorited(manga.url);
-                return Container(
-                  decoration: BoxDecoration(
-                    color: isFav
-                        ? Colors.red.withAlpha(60)
-                        : Colors.white.withAlpha(50),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    border: isFav
-                        ? Border.all(color: Colors.red.withAlpha(100))
-                        : null,
-                  ),
-                  child: IconButton(
-                    onPressed: () => _toggleFavorite(manga),
-                    icon: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      color: isFav ? Colors.red : Colors.white,
-                    ),
-                  ),
-                );
-              },
             ),
           ],
         ),
@@ -291,18 +319,28 @@ class _HeroCarouselState extends State<HeroCarousel> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: widget.mangaList.asMap().entries.map((entry) {
         final isActive = entry.key == _currentIndex;
-        return GestureDetector(
-          onTap: () => _carouselController.animateToPage(entry.key),
-          child: AnimatedContainer(
-            duration: AppTheme.animationFast,
-            width: isActive ? 24 : 8,
-            height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: isActive
-                  ? AppTheme.accentPurple
-                  : Colors.white.withOpacity(0.4),
+        final isPassed = entry.key < _currentIndex;
+
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => _carouselController.animateToPage(entry.key),
+            child: Container(
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: Colors.white.withOpacity(0.2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: isActive
+                      ? _progressController.value
+                      : (isPassed ? 1.0 : 0.0),
+                  child: Container(color: AppTheme.accentPurple),
+                ),
+              ),
             ),
           ),
         );

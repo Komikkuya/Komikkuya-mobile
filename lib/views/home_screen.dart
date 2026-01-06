@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config/app_theme.dart';
 import '../config/api_config.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/navigation_controller.dart';
 import '../controllers/genres_controller.dart';
+import '../controllers/history_controller.dart';
+import '../controllers/favorites_controller.dart';
+import '../models/history_model.dart';
 import '../widgets/hero_carousel.dart';
 import '../widgets/horizontal_manga_list.dart';
 import '../widgets/genre_chips.dart';
 import '../widgets/section_header.dart';
 import '../widgets/shimmer_loading.dart';
 import 'manga_detail_screen.dart';
+import 'chapter_reader_screen.dart';
 
 /// Main home screen with Netflix/Crunchyroll style layout
 class HomeScreen extends StatefulWidget {
@@ -31,6 +36,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // Load data on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeController>().initialize();
+      // Load history for Continue Reading widget
+      context.read<HistoryController>().loadHistory(limit: 1);
+      // Load favorites to sync status app-wide
+      context.read<FavoritesController>().loadFavorites();
     });
   }
 
@@ -107,6 +116,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
+              ),
+
+              // Continue Reading Section
+              Consumer<HistoryController>(
+                builder: (context, historyController, child) {
+                  if (historyController.history.isEmpty) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
+                  return SliverToBoxAdapter(
+                    child: _buildContinueReading(
+                      historyController.history.first,
+                    ),
+                  );
+                },
               ),
 
               // Genres Section (only show if we have genres or still loading)
@@ -299,6 +322,185 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  void _navigateToReading(HistoryItem item) {
+    // Reconstruct full URL from relative history path
+    String fullUrl = item.url;
+
+    if (item.url.startsWith('/chapter/')) {
+      final path = item.url.replaceFirst('/chapter/', '/');
+
+      if (path.contains('/view/')) {
+        // Westmanga
+        fullUrl = 'https://westmanga.me$path';
+      } else if (path.contains('/chapters/')) {
+        // Weebcentral
+        fullUrl = 'https://weebcentral.com$path';
+      } else {
+        // Komiku
+        fullUrl = 'https://komiku.org$path';
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChapterReaderScreen(
+          chapterUrl: fullUrl,
+          mangaTitle: item.title,
+          coverImage: item.image,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContinueReading(HistoryItem item) {
+    final timeAgo = _formatTimeAgo(item.time);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.spacingM,
+        AppTheme.spacingL,
+        AppTheme.spacingM,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Continue Reading',
+            icon: Icons.play_circle_outline,
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          GestureDetector(
+            onTap: () => _navigateToReading(item),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.accentPurple.withAlpha(40),
+                    AppTheme.cardBlack,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.accentPurple.withAlpha(60)),
+              ),
+              child: Row(
+                children: [
+                  // Cover image
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                    ),
+                    child: SizedBox(
+                      width: 80,
+                      height: 100,
+                      child: item.image != null
+                          ? CachedNetworkImage(
+                              imageUrl: item.image!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(
+                                color: AppTheme.surfaceBlack,
+                                child: const Icon(
+                                  Icons.book,
+                                  color: AppTheme.accentPurple,
+                                  size: 32,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: AppTheme.surfaceBlack,
+                              child: const Icon(
+                                Icons.book,
+                                color: AppTheme.accentPurple,
+                                size: 32,
+                              ),
+                            ),
+                    ),
+                  ),
+                  // Info
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${item.chapterTitle} • $timeAgo',
+                            style: const TextStyle(
+                              color: AppTheme.textGrey,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentPurple,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Continue',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${(diff.inDays / 7).floor()}w ago';
   }
 
   Widget _buildErrorScreen(HomeController controller) {
