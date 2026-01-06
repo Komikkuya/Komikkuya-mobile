@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-android:
-    name: 🤖 Android Build
+    name: Android Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -69,7 +69,7 @@ jobs:
           tag: v1.0.${{ github.run_number }}
 
   build-ios:
-    name: � iOS Build
+    name: iOS Build
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3

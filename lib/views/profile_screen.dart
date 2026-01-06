@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../config/app_theme.dart';
 import '../controllers/auth_controller.dart';
+import '../models/cache_settings_model.dart';
 
 /// Profile screen with Discord integration
 class ProfileScreen extends StatefulWidget {
@@ -18,13 +20,117 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _usernameController = TextEditingController();
   bool _isEditing = false;
 
+  // Cache management
+  CacheSettings _cacheSettings = const CacheSettings();
+  int _currentCacheSize = 0;
+  bool _isClearing = false;
+
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthController>().user;
-    if (user != null) {
-      _usernameController.text = user.username;
+    _usernameController.text =
+        context.read<AuthController>().user?.username ?? '';
+    _loadCacheInfo();
+  }
+
+  Future<void> _loadCacheInfo() async {
+    final settings = await CacheSettings.load();
+    final cacheManager = DefaultCacheManager();
+    final cacheInfo = await cacheManager.store.getCacheSize();
+    if (mounted) {
+      setState(() {
+        _cacheSettings = settings;
+        _currentCacheSize = cacheInfo;
+      });
     }
+  }
+
+  Future<void> _clearCache() async {
+    setState(() => _isClearing = true);
+
+    try {
+      final cacheManager = DefaultCacheManager();
+      await cacheManager.emptyCache();
+      await _loadCacheInfo();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: AppTheme.accentPurple,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Cache cleared successfully!',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textWhite,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.cardBlack,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isClearing = false);
+    }
+  }
+
+  void _showClearCacheDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardBlack,
+        title: const Text(
+          'Clear Cache?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'This will delete ${CacheSettings.formatSize(_currentCacheSize)} of cached images. You will need to re-download images when reading.',
+          style: const TextStyle(color: AppTheme.textGrey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.textGrey),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _clearCache();
+            },
+            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -150,6 +256,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (authController.hasDiscord) const SizedBox(height: 24),
                   // Profile info
                   _buildProfileInfo(authController),
+                  const SizedBox(height: 24),
+                  // Storage section
+                  _buildStorageSection(),
                   const SizedBox(height: 32),
                   // Logout button
                   _buildLogoutButton(),
@@ -452,6 +561,173 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => setState(() => _isEditing = true),
           ),
       ],
+    );
+  }
+
+  Widget _buildStorageSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBlack,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.surfaceBlack),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          const Row(
+            children: [
+              Icon(Icons.storage, color: AppTheme.accentPurple, size: 24),
+              SizedBox(width: 12),
+              Text(
+                'Storage',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Cache size display
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Image Cache',
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceBlack,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  CacheSettings.formatSize(_currentCacheSize),
+                  style: const TextStyle(
+                    color: AppTheme.accentPurple,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Cache limit slider
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Cache Limit',
+                style: TextStyle(color: Colors.white, fontSize: 15),
+              ),
+              Text(
+                '${_cacheSettings.maxCacheSizeMB} MB',
+                style: const TextStyle(color: AppTheme.textGrey),
+              ),
+            ],
+          ),
+          Slider(
+            value: _cacheSettings.maxCacheSizeMB.toDouble(),
+            min: 100,
+            max: 1000,
+            divisions: 9,
+            activeColor: AppTheme.accentPurple,
+            inactiveColor: AppTheme.surfaceBlack,
+            onChanged: (value) {
+              setState(() {
+                _cacheSettings = _cacheSettings.copyWith(
+                  maxCacheSizeMB: value.toInt(),
+                );
+              });
+              _cacheSettings.save();
+            },
+          ),
+          const SizedBox(height: 8),
+
+          // Auto clear toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Auto Clear Old Cache',
+                      style: TextStyle(color: Colors.white, fontSize: 15),
+                    ),
+                    Text(
+                      'Delete cache older than 7 days',
+                      style: TextStyle(color: AppTheme.textGrey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _cacheSettings.autoCleanOldCache,
+                activeThumbColor: AppTheme.accentPurple,
+                onChanged: (value) {
+                  setState(() {
+                    _cacheSettings = _cacheSettings.copyWith(
+                      autoCleanOldCache: value,
+                    );
+                  });
+                  _cacheSettings.save();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Clear cache button
+          GestureDetector(
+            onTap: _isClearing ? null : _showClearCacheDialog,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.orange.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withAlpha(100)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isClearing)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.orange,
+                      ),
+                    )
+                  else
+                    const Icon(Icons.delete_sweep, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isClearing ? 'Clearing...' : 'Clear Cache',
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
