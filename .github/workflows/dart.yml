@@ -37,9 +37,9 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/app/outputs/flutter-apk/app-release.apk
           asset_name: Komikkuya-${{ github.run_number }}.apk
-          tag: v1.0
-          overwrite: true
-          body: "Komikkuya Mobile Release"
+          tag: v1.0.${{ github.run_number }}
+          release_name: "Komikkuya v1.0.${{ github.run_number }}"
+          body: "Komikkuya Mobile Release Build #${{ github.run_number }}"
 
       # Upload arm64-v8a APK
       - name: Upload arm64-v8a APK
@@ -48,8 +48,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           asset_name: Komikkuya-${{ github.run_number }}-arm64-v8a.apk
-          tag: v1.0
-          overwrite: true
+          tag: v1.0.${{ github.run_number }}
 
       # Upload armeabi-v7a APK
       - name: Upload armeabi-v7a APK
@@ -58,8 +57,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           asset_name: Komikkuya-${{ github.run_number }}-armeabi-v7a.apk
-          tag: v1.0
-          overwrite: true
+          tag: v1.0.${{ github.run_number }}
 
       # Upload x86_64 APK
       - name: Upload x86_64 APK
@@ -68,8 +66,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/app/outputs/flutter-apk/app-x86_64-release.apk
           asset_name: Komikkuya-${{ github.run_number }}-x86_64.apk
-          tag: v1.0
-          overwrite: true
+          tag: v1.0.${{ github.run_number }}
 
   build-ios:
     name: � iOS Build
@@ -134,6 +131,6 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/ios/iphoneos/Komikkuya.ipa
           asset_name: Komikkuya-${{ github.run_number }}.ipa
-          tag: v1.0
-          overwrite: true
-          body: "Komikkuya Mobile Release"
+          tag: v1.0.${{ github.run_number }}
+          release_name: "Komikkuya v1.0.${{ github.run_number }}"
+          body: "Komikkuya Mobile Release Build #${{ github.run_number }}"

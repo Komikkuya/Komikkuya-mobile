@@ -378,7 +378,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
   }
 
   Widget _buildImageList(ChapterContent chapter) {
-    return ListView.builder(
+    final listView = ListView.builder(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.zero,
@@ -390,6 +390,19 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
         return _buildImageItem(chapter.images[index], index);
       },
     );
+
+    // Wrap entire list in InteractiveViewer for pinch-to-zoom
+    if (_readerSettings.zoomEnabled) {
+      return InteractiveViewer(
+        minScale: 1.0,
+        maxScale: 3.0,
+        panEnabled: true,
+        scaleEnabled: true,
+        child: listView,
+      );
+    }
+
+    return listView;
   }
 
   Widget _buildImageItem(ChapterImage image, int index) {
@@ -442,18 +455,6 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
         ),
       ),
     );
-
-    // Wrap in InteractiveViewer for pinch-to-zoom if enabled
-    if (_readerSettings.zoomEnabled) {
-      return InteractiveViewer(
-        minScale: 0.5,
-        maxScale: 4.0,
-        panEnabled: true,
-        scaleEnabled: true,
-        clipBehavior: Clip.none,
-        child: imageWidget,
-      );
-    }
 
     return imageWidget;
   }
