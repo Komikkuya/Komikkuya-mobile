@@ -24,6 +24,12 @@ class ApiConfig {
   static const String internationalDetail = '/api/international/detail';
   static const String internationalChapter = '/api/international/chapter';
 
+  // Doujin Endpoints (Hidden Feature)
+  static const String doujinBaseUrl =
+      'https://internationalbackup.komikkuya.my.id';
+  static const String doujinLastUpdate = '/api/doujin/last-update';
+  static const String doujinDetail = '/api/doujin/detail';
+
   // Full URLs
   static String get customUrl => '$baseUrl$custom';
   static String get genresUrl => '$baseUrl$genres';
@@ -84,6 +90,18 @@ class ApiConfig {
   static String internationalChapterUrl(String chapterUrl) {
     return '$internationalBaseUrl$internationalChapter?url=${Uri.encodeComponent(chapterUrl)}';
   }
+
+  /// Doujin last update endpoint
+  static String doujinLastUpdateUrl({int page = 1}) =>
+      '$doujinBaseUrl$doujinLastUpdate?page=$page';
+
+  /// Doujin detail endpoint
+  static String doujinDetailUrl(String detailUrl) =>
+      '$doujinBaseUrl$doujinDetail?url=${Uri.encodeComponent(detailUrl)}';
+
+  /// Doujin chapter endpoint
+  static String doujinChapterUrl(String chapterUrl) =>
+      '$doujinBaseUrl/api/doujin/chapter?url=${Uri.encodeComponent(chapterUrl)}';
 
   /// Clean URL by removing double domain prefix
   /// Handles: https://komiku.org/https://komiku.org/manga/xxx -> https://komiku.org/manga/xxx

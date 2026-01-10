@@ -8,6 +8,9 @@ enum MangaSource {
 
   /// International/WeebCentral
   international,
+
+  /// Doujin (hidden feature)
+  doujin,
 }
 
 /// Extension methods for MangaSource
@@ -21,6 +24,8 @@ extension MangaSourceExtension on MangaSource {
         return 'Asia';
       case MangaSource.international:
         return 'International';
+      case MangaSource.doujin:
+        return 'Doujin';
     }
   }
 
@@ -33,6 +38,8 @@ extension MangaSourceExtension on MangaSource {
         return 'ASIA';
       case MangaSource.international:
         return 'INT';
+      case MangaSource.doujin:
+        return '18+';
     }
   }
 
@@ -45,17 +52,35 @@ extension MangaSourceExtension on MangaSource {
         return '🌏';
       case MangaSource.international:
         return '🌐';
+      case MangaSource.doujin:
+        return '🔞';
     }
   }
 
   /// Detect source from URL
   static MangaSource fromUrl(String url) {
-    if (url.contains('westmanga.me') || url.contains('westmanga.blog')) {
+    if (url.contains('komikdewasa.id')) {
+      return MangaSource.doujin;
+    } else if (url.contains('westmanga.me') || url.contains('westmanga.blog')) {
       return MangaSource.asia;
     } else if (url.contains('weebcentral.com') ||
         url.contains('internationalbackup')) {
       return MangaSource.international;
     }
     return MangaSource.komiku;
+  }
+
+  /// Get source from type string
+  static MangaSource fromTypeString(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'doujin':
+        return MangaSource.doujin;
+      case 'asia':
+        return MangaSource.asia;
+      case 'international':
+        return MangaSource.international;
+      default:
+        return MangaSource.komiku;
+    }
   }
 }

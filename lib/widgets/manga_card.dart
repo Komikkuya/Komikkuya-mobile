@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../config/app_theme.dart';
 import '../models/manga_model.dart';
+import 'retry_network_image.dart';
 
 /// Netflix/Crunchyroll style manga poster card
 class MangaCard extends StatelessWidget {
@@ -37,32 +37,11 @@ class MangaCard extends StatelessWidget {
                 // Poster image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  child: CachedNetworkImage(
+                  child: RetryNetworkImage(
                     imageUrl: manga.imageUrl,
                     width: cardWidth,
                     height: cardHeight,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: cardWidth,
-                      height: cardHeight,
-                      color: AppTheme.cardBlack,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.accentPurple,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: cardWidth,
-                      height: cardHeight,
-                      color: AppTheme.cardBlack,
-                      child: const Icon(
-                        Icons.image_not_supported_outlined,
-                        color: AppTheme.textGrey,
-                        size: 32,
-                      ),
-                    ),
                   ),
                 ),
                 // Type badge (Manga, Manhwa, Manhua)

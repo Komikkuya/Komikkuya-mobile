@@ -8,6 +8,7 @@ import '../config/app_theme.dart';
 import '../controllers/favorites_controller.dart';
 import '../models/favorite_model.dart';
 import 'manga_detail_screen.dart';
+import 'doujin_detail_screen.dart';
 
 /// Premium favorites screen with Netflix/Crunchyroll style
 class FavoritesScreen extends StatefulWidget {
@@ -27,26 +28,48 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _navigateToDetail(FavoriteItem item) async {
-    // Reconstruct full URL if not stored
-    String navUrl;
+    // Check if this is a doujin type
+    final type = item.type?.toLowerCase() ?? '';
 
-    // For international/weebcentral, URL is required (complex format)
+    if (type == 'doujin') {
+      // Navigate to DoujinDetailScreen
+      String doujinUrl;
+      if (item.url != null &&
+          item.url!.isNotEmpty &&
+          item.url!.startsWith('http')) {
+        doujinUrl = item.url!;
+      } else {
+        // Reconstruct URL from slug
+        doujinUrl = 'https://komikdewasa.id/komik/${item.slug}';
+      }
+
+      debugPrint('FavoritesScreen._navigateToDetail: Doujin - $doujinUrl');
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DoujinDetailScreen(doujinUrl: doujinUrl),
+        ),
+      );
+      return;
+    }
+
+    // Regular manga navigation
+    String navUrl;
     final source = item.source?.toLowerCase() ?? '';
 
     if (item.url != null &&
         item.url!.isNotEmpty &&
         item.url!.startsWith('http')) {
-      // Use stored full URL
       navUrl = item.url!;
     } else if (source == 'komiku') {
       navUrl = 'https://komiku.org/manga/${item.slug}/';
     } else if (source == 'westmanga') {
       navUrl = 'https://westmanga.me/comic/${item.slug}/';
     } else if (source == 'international' || source == 'weebcentral') {
-      // For international, if no URL stored, try using slug as full path
       navUrl = 'https://weebcentral.com/series/${item.slug}';
     } else {
-      // Unknown source - try each source in order
       navUrl = await _findWorkingUrl(item.slug);
     }
 

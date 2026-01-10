@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../config/app_theme.dart';
 import '../controllers/history_controller.dart';
 import '../models/history_model.dart';
+import '../widgets/retry_network_image.dart';
 import 'chapter_reader_screen.dart';
+import 'doujin_reader_screen.dart';
 
 /// Premium reading history screen with Netflix/Crunchyroll style
 class HistoryScreen extends StatefulWidget {
@@ -26,21 +26,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _navigateToDetail(HistoryItem item) async {
-    // Reconstruct full URL from relative history path
-    // Format: /chapter/view/slug/ or /chapter/slug/
+    // Check if this is a doujin type
+    final type = item.type?.toLowerCase() ?? '';
+
+    if (type == 'doujin') {
+      // Navigate to DoujinReaderScreen
+      String chapterUrl = item.url;
+
+      // Ensure full URL
+      if (!chapterUrl.startsWith('http')) {
+        // Transform /doujin/chapter/slug -> /baca/slug
+        if (chapterUrl.startsWith('/doujin/chapter/')) {
+          chapterUrl = chapterUrl.replaceFirst('/doujin/chapter/', '/baca/');
+        }
+        chapterUrl = 'https://komikdewasa.id$chapterUrl';
+      }
+
+      debugPrint('HistoryScreen._navigateToDetail: Doujin - $chapterUrl');
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DoujinReaderScreen(
+            chapterUrl: chapterUrl,
+            mangaTitle: item.title,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Regular manga navigation
     String fullUrl = item.url;
 
     if (item.url.startsWith('/chapter/')) {
       final path = item.url.replaceFirst('/chapter/', '/');
 
       if (path.contains('/view/')) {
-        // Westmanga
         fullUrl = 'https://westmanga.me$path';
       } else if (path.contains('/chapters/')) {
-        // Weebcentral
         fullUrl = 'https://weebcentral.com$path';
       } else {
-        // Komiku
         fullUrl = 'https://komiku.org$path';
       }
     }
@@ -50,7 +77,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     if (!mounted) return;
 
-    // Navigate straight to reader
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -314,10 +340,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   width: 90,
                   height: 120,
                   child: item.image != null
-                      ? CachedNetworkImage(
+                      ? RetryNetworkImage(
                           imageUrl: item.image!,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
+                          placeholder: Container(
                             color: AppTheme.surfaceBlack,
                             child: const Center(
                               child: Icon(
@@ -326,7 +352,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                             ),
                           ),
-                          errorWidget: (_, __, ___) => Container(
+                          errorWidget: Container(
                             color: AppTheme.surfaceBlack,
                             child: const Center(
                               child: Icon(

@@ -29,7 +29,7 @@ class NavigationController extends ChangeNotifier {
       label: 'Popular',
     ),
     NavigationItem(
-      icon: Icons.category_outlined,
+      icon: Icons.category_outlined, 
       activeIcon: Icons.category,
       label: 'Genres',
     ),

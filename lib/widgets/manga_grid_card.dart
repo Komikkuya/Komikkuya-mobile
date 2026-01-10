@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../config/app_theme.dart';
 import '../models/manga_model.dart';
+import 'retry_network_image.dart';
 
 /// Grid card widget for Popular screen with rank badge
 class MangaGridCard extends StatelessWidget {
@@ -32,27 +32,7 @@ class MangaGridCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               // Cover image
-              CachedNetworkImage(
-                imageUrl: manga.imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: AppTheme.cardBlack,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.accentPurple,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppTheme.cardBlack,
-                  child: const Icon(
-                    Icons.broken_image,
-                    color: AppTheme.textGrey,
-                    size: 40,
-                  ),
-                ),
-              ),
+              RetryNetworkImage(imageUrl: manga.imageUrl, fit: BoxFit.cover),
 
               // Gradient overlay
               Container(

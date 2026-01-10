@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,6 +9,7 @@ import '../controllers/navigation_controller.dart';
 import '../controllers/favorites_controller.dart';
 import '../models/manga_detail_model.dart';
 import '../models/source_type.dart';
+import '../widgets/retry_network_image.dart';
 import 'chapter_reader_screen.dart';
 
 /// Manga detail screen with Crunchyroll/Netflix/Webtoon inspired design
@@ -373,25 +373,9 @@ class _MangaDetailScreenState extends State<MangaDetailScreen> {
             // Cover image
             Hero(
               tag: widget.heroTag ?? manga.title,
-              child: CachedNetworkImage(
+              child: RetryNetworkImage(
                 imageUrl: widget.coverImage ?? manga.coverImage,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: AppTheme.cardBlack,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.accentPurple,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppTheme.cardBlack,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: AppTheme.textGrey,
-                    size: 64,
-                  ),
-                ),
               ),
             ),
             // Gradient overlay

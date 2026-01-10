@@ -211,6 +211,9 @@ class MangaService {
         return fetchInternationalDetail(mangaUrl);
       case MangaSource.komiku:
         return fetchKomikuDetail(mangaUrl);
+      case MangaSource.doujin:
+        // Doujin has its own separate flow via DoujinController
+        throw UnsupportedError('Use DoujinController for doujin content');
     }
   }
 
@@ -254,6 +257,9 @@ class MangaService {
         return fetchInternationalChapter(chapterUrl);
       case MangaSource.komiku:
         return fetchKomikuChapter(chapterUrl);
+      case MangaSource.doujin:
+        // Doujin has its own separate flow via DoujinController
+        throw UnsupportedError('Use DoujinReaderScreen for doujin content');
     }
   }
 

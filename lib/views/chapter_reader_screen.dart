@@ -8,6 +8,7 @@ import '../controllers/chapter_reader_controller.dart';
 import '../controllers/history_controller.dart';
 import '../models/chapter_content_model.dart';
 import '../models/reader_settings_model.dart';
+import '../widgets/retry_network_image.dart';
 
 /// Chapter reader screen with Webtoon/Netflix style vertical scrolling
 class ChapterReaderScreen extends StatefulWidget {
@@ -36,6 +37,9 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
   ReaderSettings _readerSettings = const ReaderSettings();
 
   String? _initialMangaUrl;
+
+  // Retry keys for forcing image reload when retry button is tapped
+  final Map<int, int> _retryKeys = {};
 
   @override
   void initState() {
@@ -380,7 +384,8 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
   Widget _buildImageList(ChapterContent chapter) {
     final listView = ListView.builder(
       controller: _scrollController,
-      physics: const BouncingScrollPhysics(),
+      physics: const ClampingScrollPhysics(),
+      addAutomaticKeepAlives: true,
       padding: EdgeInsets.zero,
       itemCount: chapter.images.length + 1, // +1 for end card
       itemBuilder: (context, index) {
@@ -407,12 +412,14 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
 
   Widget _buildImageItem(ChapterImage image, int index) {
     final imageUrl = _getOptimizedImageUrl(image.url);
+    final retryKey = _retryKeys[index] ?? 0;
 
-    final imageWidget = CachedNetworkImage(
+    final imageWidget = RetryNetworkImage(
+      key: ValueKey('$imageUrl-$retryKey'),
       imageUrl: imageUrl,
       fit: BoxFit.fitWidth,
       width: double.infinity,
-      placeholder: (context, url) => Container(
+      placeholder: Container(
         height: 300,
         color: AppTheme.cardBlack,
         child: Shimmer.fromColors(
@@ -433,22 +440,35 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen>
           ),
         ),
       ),
-      errorWidget: (context, url, error) => Container(
+      errorWidget: Container(
         height: 200,
         color: AppTheme.cardBlack,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.broken_image,
-                color: AppTheme.textGrey,
+              Icon(
+                Icons.image_not_supported_outlined,
+                color: Colors.white.withAlpha(128),
                 size: 40,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                'Image ${index + 1}',
-                style: const TextStyle(color: AppTheme.textGrey),
+                'Gagal memuat gambar ${index + 1}',
+                style: TextStyle(color: Colors.white.withAlpha(128)),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _retryKeys[index] = (_retryKeys[index] ?? 0) + 1;
+                  });
+                },
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Coba Lagi'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.accentPurple,
+                ),
               ),
             ],
           ),

@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../controllers/search_controller.dart' as app;
 import '../models/search_result_model.dart';
 import '../models/source_type.dart';
+import '../widgets/retry_network_image.dart';
 import 'manga_detail_screen.dart';
+import 'doujin_list_screen.dart';
 
 /// Search screen with multi-source search
 class SearchScreen extends StatefulWidget {
@@ -22,6 +23,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final FocusNode _focusNode = FocusNode();
   final app.SearchController _controller = app.SearchController();
   Timer? _debounce;
+
+  // Hidden feature: tap counter for secret doujin access
+  int _hiddenTapCount = 0;
 
   @override
   void initState() {
@@ -55,6 +59,29 @@ class _SearchScreenState extends State<SearchScreen> {
         builder: (context) => MangaDetailScreen(mangaUrl: result.url),
       ),
     );
+  }
+
+  /// Hidden feature: tap 5 times to access doujin reader
+  void _onHiddenTap() {
+    _hiddenTapCount++;
+
+    if (_hiddenTapCount >= 5) {
+      _hiddenTapCount = 0;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DoujinListScreen()),
+      );
+    } else if (_hiddenTapCount >= 3) {
+      // Give hint after 3 taps
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${5 - _hiddenTapCount} more...'),
+          duration: const Duration(milliseconds: 500),
+          backgroundColor: AppTheme.cardBlack,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -95,6 +122,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
                 return const SizedBox.shrink();
               },
+            ),
+            // Hidden button - invisible, activates after 5 taps
+            GestureDetector(
+              onTap: _onHiddenTap,
+              child: Container(
+                width: 48,
+                height: 48,
+                color: Colors.transparent,
+              ),
             ),
           ],
         ),
@@ -223,22 +259,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 topLeft: Radius.circular(AppTheme.radiusMedium),
                 bottomLeft: Radius.circular(AppTheme.radiusMedium),
               ),
-              child: CachedNetworkImage(
+              child: RetryNetworkImage(
                 imageUrl: result.imageUrl,
                 width: 80,
                 height: 120,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Shimmer.fromColors(
+                placeholder: Shimmer.fromColors(
                   baseColor: AppTheme.cardBlack,
                   highlightColor: AppTheme.textGrey.withAlpha(51),
                   child: Container(color: AppTheme.cardBlack),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppTheme.cardBlack,
-                  child: const Icon(
-                    Icons.broken_image,
-                    color: AppTheme.textGrey,
-                  ),
                 ),
               ),
             ),
@@ -368,6 +397,8 @@ class _SearchScreenState extends State<SearchScreen> {
         return Colors.blue;
       case MangaSource.international:
         return Colors.green;
+      case MangaSource.doujin:
+        return Colors.pink;
     }
   }
 
